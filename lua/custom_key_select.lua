@@ -29,6 +29,7 @@ function M.init(env)
     local config = env.engine.schema.config
     env.tone_keys = config:get_string("custom_key_select/tone_keys") or "1290"
     env.tone_codes = config:get_string("custom_key_select/tone_codes") or "7890"
+    env.strip_tones_on_return = config:get_bool("custom_key_select/strip_tones_on_return")
     env.page_size = config:get_int("menu/page_size") or 6
 end
 
@@ -48,6 +49,20 @@ function M.func(key, env)
     end
 
     if key:release() then return K_NOOP end
+
+    -- Enter 提交原始拼音时删除词库内部声调码。
+    -- 只拦截普通 Enter 且仅处理 abc 段，不影响 Ctrl+Enter 及其他功能模式。
+    if env.strip_tones_on_return and is_plain_key(key) and repr == "Return"
+        and ctx:is_composing() and not ctx.composition:empty() then
+        local seg = ctx.composition:back()
+        local input = ctx.input or ""
+        if seg and seg:has_tag("abc") and input:find("[7890]") then
+            local raw = input:gsub("[7890]", "")
+            ctx:clear()
+            if raw ~= "" then env.engine:commit_text(raw) end
+            return K_ACCEPT
+        end
+    end
 
     -- 左右 Shift 分别提交当前页第 2、3 项；空格仍由 Rime 提交第 1 项。
     if not is_plain_key(key) or not ctx:is_composing() or ctx.composition:empty() then return K_NOOP end
