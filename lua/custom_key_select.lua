@@ -55,6 +55,22 @@ function M.func(key, env)
 
     if key:release() then return K_NOOP end
 
+    -- Rime 的编码缓冲区使用 UTF-8 字节位置。普通 Backspace 只删一个字节时
+    -- 会把上标声调留成残缺字符，因此在此删除光标前的完整声调字符。
+    if is_plain_key(key) and repr == "BackSpace" and ctx:is_composing()
+        and not ctx.composition:empty() then
+        local seg = ctx.composition:back()
+        local input = ctx.input or ""
+        local caret = ctx.caret_pos or #input
+        local left = input:sub(1, caret)
+        local last = left:match("([%z\1-\127\194-\244][\128-\191]*)$") or ""
+        if seg and seg:has_tag("abc") and last ~= ""
+            and string.find("¹²³⁴", last, 1, true) then
+            ctx:pop_input(#last)
+            return K_ACCEPT
+        end
+    end
+
     -- Enter 提交原始拼音时删除词库内部声调码。
     -- 只拦截普通 Enter 且仅处理 abc 段，不影响 Ctrl+Enter 及其他功能模式。
     if env.strip_tones_on_return and is_plain_key(key) and repr == "Return"
