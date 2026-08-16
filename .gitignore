@@ -1,0 +1,15 @@
+# Rime 运行时与本机状态
+/build/
+/*.userdb/
+/sync/
+/installation.yaml
+/user.yaml
+.DS_Store
+*.log
+
+# 官方 Release 单独分发的大型语法模型（本机保留，不进入 Git）
+/*.gram
+
+# 临时文件
+*.tmp
+*~
