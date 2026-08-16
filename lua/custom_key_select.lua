@@ -10,7 +10,7 @@ local function is_plain_key(key)
     return not (key:ctrl() or key:alt() or key:super() or key:shift())
 end
 
-local function select_and_confirm(ctx, index, page_size)
+local function select_candidate(ctx, index, page_size)
     if not ctx:has_menu() or ctx.composition:empty() then return false end
     local seg = ctx.composition:back()
     local menu = seg and seg.menu
@@ -21,7 +21,6 @@ local function select_and_confirm(ctx, index, page_size)
     if menu:prepare(page_start + index + 1) <= page_start + index then return false end
 
     ctx:select(page_start + index)
-    ctx:confirm_current_selection()
     return true
 end
 
@@ -50,7 +49,7 @@ function M.func(key, env)
     if is_left_shift or is_right_shift then
         if not key:release() then return K_ACCEPT end
         local index = is_left_shift and 1 or 2
-        return select_and_confirm(ctx, index, env.page_size) and K_ACCEPT or K_NOOP
+        return select_candidate(ctx, index, env.page_size) and K_ACCEPT or K_NOOP
     end
 
     if key:release() then return K_NOOP end
