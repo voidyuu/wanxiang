@@ -29,6 +29,11 @@ function M.init(env)
     local config = env.engine.schema.config
     env.tone_keys = config:get_string("custom_key_select/tone_keys") or "1290"
     env.tone_codes = config:get_string("custom_key_select/tone_codes") or "7890"
+    env.tone_input_codes = config:get_string("custom_key_select/tone_input_codes") or env.tone_codes
+    env.tone_input_chars = {}
+    for char in env.tone_input_codes:gmatch("[%z\1-\127\194-\244][\128-\191]*") do
+        env.tone_input_chars[#env.tone_input_chars + 1] = char
+    end
     env.strip_tones_on_return = config:get_bool("custom_key_select/strip_tones_on_return")
     env.page_size = config:get_int("menu/page_size") or 6
 end
@@ -56,8 +61,8 @@ function M.func(key, env)
         and ctx:is_composing() and not ctx.composition:empty() then
         local seg = ctx.composition:back()
         local input = ctx.input or ""
-        if seg and seg:has_tag("abc") and input:find("[7890]") then
-            local raw = input:gsub("[7890]", "")
+        if seg and seg:has_tag("abc") and input:find("[7890¹²³⁴]") then
+            local raw = input:gsub("[7890¹²³⁴]", "")
             ctx:clear()
             if raw ~= "" then env.engine:commit_text(raw) end
             return K_ACCEPT
@@ -73,14 +78,15 @@ function M.func(key, env)
     -- 将用户声调键映射为万象词库内部使用的 7/8/9/0。
     local pos = env.tone_keys:find(repr, 1, true)
     if pos then
-        local code = env.tone_codes:sub(pos, pos)
+        local code = env.tone_input_chars[pos]
         if code ~= "" then
             local input = ctx.input or ""
             local caret = ctx.caret_pos or #input
             -- 与万象原来的 7/8/9/0 行为一致：音节末尾已有声调时，
             -- 新声调直接替换旧声调，无需先按退格。
-            if caret == #input and input:sub(-1):match("[7890]") then
-                ctx:pop_input(1)
+            if caret == #input and input:match("[7890¹²³⁴]$") then
+                local last = input:match("([%z\1-\127\194-\244][\128-\191]*)$") or ""
+                ctx:pop_input(#last)
             end
             ctx:push_input(code)
             return K_ACCEPT
