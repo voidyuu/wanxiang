@@ -10,6 +10,8 @@ local function is_plain_key(key)
     return not (key:ctrl() or key:alt() or key:super() or key:shift())
 end
 
+local highlight_current_page_first
+
 local function select_candidate(ctx, index, page_size)
     if not ctx:has_menu() or ctx.composition:empty() then return false end
     local seg = ctx.composition:back()
@@ -21,6 +23,41 @@ local function select_candidate(ctx, index, page_size)
     if menu:prepare(page_start + index + 1) <= page_start + index then return false end
 
     ctx:select(page_start + index)
+    -- 部分候选上屏后，composition:back() 会切换到新剩余段；立即校正其高亮。
+    highlight_current_page_first(ctx, page_size)
+    return true
+end
+
+local function update_first_highlight(ctx, env)
+    if not env.default_highlight_first or not ctx:is_composing()
+        or not ctx:has_menu() or ctx.composition:empty() then
+        return
+    end
+
+    local seg = ctx.composition:back()
+    local menu = seg and seg.menu
+    if not seg or not seg:has_tag("abc") or not menu or menu:empty() then return end
+
+    local selected = seg.selected_index or 0
+    local page_start = math.floor(selected / env.page_size) * env.page_size
+    local target = page_start
+
+    -- 所有候选上下文更新后都校正到当前页第 1 项。
+    if selected ~= target and menu:prepare(target + 1) > target then
+        ctx:highlight(target)
+    end
+end
+
+highlight_current_page_first = function(ctx, page_size)
+    if not ctx:has_menu() or ctx.composition:empty() then return false end
+    local seg = ctx.composition:back()
+    local menu = seg and seg.menu
+    if not seg or not seg:has_tag("abc") or not menu or menu:empty() then return false end
+
+    local selected = seg.selected_index or 0
+    local page_start = math.floor(selected / page_size) * page_size
+    if menu:prepare(page_start + 1) <= page_start then return false end
+    ctx:highlight(page_start)
     return true
 end
 
@@ -35,11 +72,23 @@ function M.init(env)
     end
     env.strip_tones_on_return = config:get_bool("custom_key_select/strip_tones_on_return")
     env.space_select_first = config:get_bool("custom_key_select/space_select_first")
+    env.default_highlight_first = config:get_bool("custom_key_select/default_highlight_first")
+    env.lock_highlight_first = config:get_bool("custom_key_select/lock_highlight_first")
     env.page_size = config:get_int("menu/page_size") or 6
     env.left_shift_down = false
     env.right_shift_down = false
     env.left_shift_used = false
     env.right_shift_used = false
+    env.highlight_update_conn = env.engine.context.update_notifier:connect(function(ctx)
+        update_first_highlight(ctx, env)
+    end)
+end
+
+function M.fini(env)
+    if env.highlight_update_conn then
+        env.highlight_update_conn:disconnect()
+        env.highlight_update_conn = nil
+    end
 end
 
 function M.func(key, env)
@@ -74,15 +123,18 @@ function M.func(key, env)
     if env.right_shift_down then env.right_shift_used = true end
     if key:release() then return K_NOOP end
 
-    -- 有候选菜单时，空格固定提交整个列表的第 1 项，而非当前高亮项。
+    -- 候选菜单中的普通方向键不再移动高亮；带修饰键的方向键仍按原功能处理。
+    local is_arrow = repr == "Left" or repr == "Right" or repr == "Up" or repr == "Down"
+    if env.lock_highlight_first and is_plain_key(key) and is_arrow
+        and ctx:has_menu() and not ctx.composition:empty() then
+        highlight_current_page_first(ctx, env.page_size)
+        return K_ACCEPT
+    end
+
+    -- 空格固定提交当前页第 1 项。
     if env.space_select_first and is_plain_key(key) and repr == "space"
         and ctx:has_menu() and not ctx.composition:empty() then
-        local seg = ctx.composition:back()
-        local menu = seg and seg.menu
-        if menu and not menu:empty() and menu:prepare(1) > 0 then
-            ctx:select(0)
-            return K_ACCEPT
-        end
+        if select_candidate(ctx, 0, env.page_size) then return K_ACCEPT end
     end
 
     -- Rime 的编码缓冲区使用 UTF-8 字节位置。普通 Backspace 只删一个字节时
@@ -115,7 +167,7 @@ function M.func(key, env)
         end
     end
 
-    -- 左右单按 Shift 分别提交当前页第 2、3 项；空格仍由 Rime 提交第 1 项。
+    -- 空格、左 Shift、右 Shift 分别提交当前页第 1、2、3 项。
     if not is_plain_key(key) or not ctx:is_composing() or ctx.composition:empty() then return K_NOOP end
     local seg = ctx.composition:back()
     -- 仅处理普通拼音段，避免影响 / 符号、R 数字转换等功能模式。

@@ -10,8 +10,10 @@ patch:
   custom_key_select/tone_input_codes: "¹²³⁴"
   # 拼音编码含声调码时，按 Enter 提交删除声调码后的原始文本。
   custom_key_select/strip_tones_on_return: true
-  # 有候选时，空格始终提交整个候选列表的第 1 项，不跟随当前高亮项。
+  # 有候选时，空格固定提交当前页第 1 项。
   custom_key_select/space_select_first: true
+  custom_key_select/default_highlight_first: true
+  custom_key_select/lock_highlight_first: true
 
   switches:
     - name: ascii_mode # 中英输入状态
@@ -34,7 +36,7 @@ patch:
       reset: 0
     - options: [raw_input, tone_display, full_pinyin] #开启后在输入编码的位置实时转换为带声调全拼或者不带声调全拼，不开启则采用系统配置原始编码，影响的是preedit_format,归属：super_preedit.lua
       states: [原编码, 有声调, 无声调]
-      reset: 2 #对于开关组从0开始数，第几个就reset几可设为默认
+      reset: 0 #对于开关组从0开始数，第几个就reset几可设为默认
     - options: [s2s, s2t, s2hk, s2tw] # 简繁转换开关组，可以在一个空选项和多个实际“- simplifier@s2hk”引入的项目之前切换，这是一个开关组，你可以将其中任意一个s2s等设置为toggle快捷键，多次按下将轮询
       states: [简体, 通繁, 港繁, 臺繁]
       reset: 0
@@ -43,7 +45,7 @@ patch:
       reset: 0
     - options: [comment_off, tone_hint, toneless_hint] #开启后在候选的注释里面实时显示全拼声调，不开启则采用系统配置，影响的是comment_format，归属：super_comment.lua
       states: [注释关, 有声调, 无声调]
-      reset: 1
+      reset: 0
     - name: super_tips #开启后在输入编码后面的提示区显示实时的提示数据，受tips数据库影响，表情、翻译、车牌、符号等对应关系数据，并可实现句号上屏，不开启则默认，影响的是segment.prompt参数，归属：super_tips.lua
       states: [提示关, 提示开]
       reset: 0

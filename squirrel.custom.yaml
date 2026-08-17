@@ -1,0 +1,5 @@
+patch:
+  # 候选项横向排列。
+  style/candidate_list_layout: linear
+  # 隐藏候选序号，只显示候选文字与注释。
+  style/candidate_format: "[candidate] [comment]"
