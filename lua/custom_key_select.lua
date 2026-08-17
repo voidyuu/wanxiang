@@ -181,9 +181,11 @@ function M.func(key, env)
             local input = ctx.input or ""
             local caret = ctx.caret_pos or #input
             -- 与万象原来的 7/8/9/0 行为一致：音节末尾已有声调时，
-            -- 新声调直接替换旧声调，无需先按退格。
-            if caret == #input and input:match("[7890¹²³⁴]$") then
-                local last = input:match("([%z\1-\127\194-\244][\128-\191]*)$") or ""
+            -- 新声调直接替换旧声调，无需先按退格。这里必须检查当前
+            -- 光标左侧，而不是整串输入末尾，才能支持 Tab 定位到前一音节。
+            local left = input:sub(1, caret)
+            local last = left:match("([%z\1-\127\194-\244][\128-\191]*)$") or ""
+            if last ~= "" and string.find("7890¹²³⁴", last, 1, true) then
                 ctx:pop_input(#last)
             end
             ctx:push_input(code)
@@ -191,8 +193,9 @@ function M.func(key, env)
         end
     end
 
-    -- 原 7、8 不再作为一、二声输入键。
-    if repr == "7" or repr == "8" then return K_ACCEPT end
+    -- 普通拼音候选中禁用全部数字选词；1/2/9/0 已在上方作为声调键处理，
+    -- 其余数字在这里吞掉，避免继续传给万象处理器或 selector 选择候选。
+    if repr:match("^[0-9]$") then return K_ACCEPT end
 
     return K_NOOP
 end
