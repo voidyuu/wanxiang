@@ -1,0 +1,35 @@
+name: Auto Release
+
+on:
+  push:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Package and release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout pushed commit
+        uses: actions/checkout@v4
+
+      - name: Create ZIP package
+        run: |
+          git archive \
+            --format=zip \
+            --output="rime-${GITHUB_SHA::12}.zip" \
+            HEAD
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="auto-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::12}"
+
+          gh release create "$TAG" \
+            --target "$GITHUB_SHA" \
+            --title "自动发布 $TAG" \
+            --generate-notes \
+            "rime-${GITHUB_SHA::12}.zip"
