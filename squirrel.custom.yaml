@@ -3,3 +3,50 @@ patch:
   style/candidate_list_layout: linear
   # 隐藏候选序号，只显示候选文字与注释。
   style/candidate_format: "[candidate] [comment]"
+  # 跟随 macOS 外观自动切换亮色与暗色皮肤。
+  style/color_scheme: macos_light
+  style/color_scheme_dark: macos_dark
+
+  preset_color_schemes/macos_light:
+    name: macos_light
+    author: 一方
+    back_color: 0xFFFFFF
+    border_color: 0xC8C8C8
+    text_color: 0x424242
+    hilited_back_color: 0xFF7A00
+    hilited_candidate_back_color: 0xFF7A00
+    hilited_candidate_text_color: 0xFFFFFF
+    hilited_candidate_label_color: 0xFFFFFF
+    hilited_comment_text_color: 0x999999
+    hilited_text_color: 0x999999
+    candidate_text_color: 0x3c3c3c
+    comment_text_color: 0x999999
+    horizontal: true
+    inline_preedit: true
+    label_color: 0x999999
+    candidate_format: "%c\u2005%@"
+    font_face: PingFangSC
+    font_point: 17
+    label_font_point: 13
+
+  preset_color_schemes/macos_dark:
+    name: macos_dark
+    author: 一方
+    back_color: 0x252a2e
+    border_color: 0x4A4A4A
+    text_color: 0x424242
+    hilited_back_color: 0xFF7A00
+    hilited_candidate_back_color: 0xFF7A00
+    hilited_candidate_text_color: 0xFFFFFF
+    hilited_candidate_label_color: 0xFFFFFF
+    hilited_comment_text_color: 0x999999
+    hilited_text_color: 0x999999
+    candidate_text_color: 0xe9e9ea
+    comment_text_color: 0x999999
+    horizontal: true
+    inline_preedit: true
+    label_color: 0x999999
+    candidate_format: "%c\u2005%@"
+    font_face: PingFangSC
+    font_point: 17
+    label_font_point: 13
