@@ -19,7 +19,7 @@ jobs:
         run: |
           git archive \
             --format=zip \
-            --output="rime-${GITHUB_SHA::12}.zip" \
+            --output="rime-latest.zip" \
             HEAD
 
       - name: Create GitHub Release
@@ -32,4 +32,4 @@ jobs:
             --target "$GITHUB_SHA" \
             --title "自动发布 $TAG" \
             --generate-notes \
-            "rime-${GITHUB_SHA::12}.zip"
+            "rime-latest.zip"
