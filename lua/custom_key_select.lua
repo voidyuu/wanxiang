@@ -34,7 +34,12 @@ function M.init(env)
         env.tone_input_chars[#env.tone_input_chars + 1] = char
     end
     env.strip_tones_on_return = config:get_bool("custom_key_select/strip_tones_on_return")
+    env.space_select_first = config:get_bool("custom_key_select/space_select_first")
     env.page_size = config:get_int("menu/page_size") or 6
+    env.left_shift_down = false
+    env.right_shift_down = false
+    env.left_shift_used = false
+    env.right_shift_used = false
 end
 
 function M.func(key, env)
@@ -42,17 +47,43 @@ function M.func(key, env)
     local repr = key:repr() or ""
     local kc = key.keycode
 
-    -- Squirrel 将“单独按 Shift”在松键时交给输入法处理。
-    -- 按下阶段只吞掉事件，松开阶段再提交对应候选，避免触发两次。
     local is_left_shift = repr == "Shift_L" or repr == "Release+Shift_L" or kc == 0xFFE1
     local is_right_shift = repr == "Shift_R" or repr == "Release+Shift_R" or kc == 0xFFE2
     if is_left_shift or is_right_shift then
-        if not key:release() then return K_ACCEPT end
-        local index = is_left_shift and 1 or 2
-        return select_candidate(ctx, index, env.page_size) and K_ACCEPT or K_NOOP
+        local side = is_left_shift and "left" or "right"
+        if not key:release() then
+            env[side .. "_shift_down"] = true
+            env[side .. "_shift_used"] = false
+            -- 不吞掉按下事件，让 Shift+字母、Shift+数字等组合键保持上档功能。
+            return K_NOOP
+        end
+
+        local used = env[side .. "_shift_used"]
+        env[side .. "_shift_down"] = false
+        env[side .. "_shift_used"] = false
+        -- 只有按下和松开之间没有使用其他键时，才把单按 Shift 当作候选键。
+        if not used then
+            local index = is_left_shift and 1 or 2
+            if select_candidate(ctx, index, env.page_size) then return K_ACCEPT end
+        end
+        return K_NOOP
     end
 
+    -- Shift 按住期间出现任何其他按键，均视为组合键；其按下和松开事件都放行。
+    if env.left_shift_down then env.left_shift_used = true end
+    if env.right_shift_down then env.right_shift_used = true end
     if key:release() then return K_NOOP end
+
+    -- 有候选菜单时，空格固定提交整个列表的第 1 项，而非当前高亮项。
+    if env.space_select_first and is_plain_key(key) and repr == "space"
+        and ctx:has_menu() and not ctx.composition:empty() then
+        local seg = ctx.composition:back()
+        local menu = seg and seg.menu
+        if menu and not menu:empty() and menu:prepare(1) > 0 then
+            ctx:select(0)
+            return K_ACCEPT
+        end
+    end
 
     -- Rime 的编码缓冲区使用 UTF-8 字节位置。普通 Backspace 只删一个字节时
     -- 会把上标声调留成残缺字符，因此在此删除光标前的完整声调字符。
@@ -84,7 +115,7 @@ function M.func(key, env)
         end
     end
 
-    -- 左右 Shift 分别提交当前页第 2、3 项；空格仍由 Rime 提交第 1 项。
+    -- 左右单按 Shift 分别提交当前页第 2、3 项；空格仍由 Rime 提交第 1 项。
     if not is_plain_key(key) or not ctx:is_composing() or ctx.composition:empty() then return K_NOOP end
     local seg = ctx.composition:back()
     -- 仅处理普通拼音段，避免影响 / 符号、R 数字转换等功能模式。

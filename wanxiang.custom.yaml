@@ -10,6 +10,8 @@ patch:
   custom_key_select/tone_input_codes: "¹²³⁴"
   # 拼音编码含声调码时，按 Enter 提交删除声调码后的原始文本。
   custom_key_select/strip_tones_on_return: true
+  # 有候选时，空格始终提交整个候选列表的第 1 项，不跟随当前高亮项。
+  custom_key_select/space_select_first: true
 
   switches:
     - name: ascii_mode # 中英输入状态
