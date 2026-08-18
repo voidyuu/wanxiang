@@ -75,10 +75,6 @@ function M.init(env)
     env.default_highlight_first = config:get_bool("custom_key_select/default_highlight_first")
     env.lock_highlight_first = config:get_bool("custom_key_select/lock_highlight_first")
     env.page_size = config:get_int("menu/page_size") or 6
-    env.left_shift_down = false
-    env.right_shift_down = false
-    env.left_shift_used = false
-    env.right_shift_used = false
     env.highlight_update_conn = env.engine.context.update_notifier:connect(function(ctx)
         update_first_highlight(ctx, env)
     end)
@@ -99,31 +95,16 @@ function M.func(key, env)
     local is_left_shift = repr == "Shift_L" or repr == "Release+Shift_L" or kc == 0xFFE1
     local is_right_shift = repr == "Shift_R" or repr == "Release+Shift_R" or kc == 0xFFE2
     if is_left_shift or is_right_shift then
-        local side = is_left_shift and "left" or "right"
-        if not key:release() then
-            env[side .. "_shift_down"] = true
-            env[side .. "_shift_used"] = false
-            -- 不吞掉按下事件，让 Shift+字母、Shift+数字等组合键保持上档功能。
-            return K_NOOP
-        end
-
-        local used = env[side .. "_shift_used"]
-        env[side .. "_shift_down"] = false
-        env[side .. "_shift_used"] = false
-        -- 只有按下和松开之间没有使用其他键时，才把单按 Shift 当作候选键。
-        if not used then
-            local index = is_left_shift and 1 or 2
-            if select_candidate(ctx, index, env.page_size) then return K_ACCEPT end
-        end
+        -- 有候选时在按下阶段立即选词；松开事件不再触发选择。
+        -- 这意味着候选显示期间 Shift+字母会先提交对应候选。
+        if key:release() then return K_NOOP end
+        local index = is_left_shift and 1 or 2
+        if select_candidate(ctx, index, env.page_size) then return K_ACCEPT end
+        -- 没有可选候选时继续放行，保留普通场景下的上挡键功能。
         return K_NOOP
     end
 
-    -- 只把 Shift 按下后出现的其他“按键按下”视为组合键。
-    -- 快速输入时，前一个字母的松开事件可能晚于 Shift 按下到达；若把这种
-    -- 迟到的 key-up 也计入，会误判为 Shift+字母，导致单按 Shift 偶发失效。
     if key:release() then return K_NOOP end
-    if env.left_shift_down then env.left_shift_used = true end
-    if env.right_shift_down then env.right_shift_used = true end
 
     -- 候选菜单中的普通方向键不再移动高亮；带修饰键的方向键仍按原功能处理。
     local is_arrow = repr == "Left" or repr == "Right" or repr == "Up" or repr == "Down"
