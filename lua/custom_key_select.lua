@@ -118,10 +118,12 @@ function M.func(key, env)
         return K_NOOP
     end
 
-    -- Shift 按住期间出现任何其他按键，均视为组合键；其按下和松开事件都放行。
+    -- 只把 Shift 按下后出现的其他“按键按下”视为组合键。
+    -- 快速输入时，前一个字母的松开事件可能晚于 Shift 按下到达；若把这种
+    -- 迟到的 key-up 也计入，会误判为 Shift+字母，导致单按 Shift 偶发失效。
+    if key:release() then return K_NOOP end
     if env.left_shift_down then env.left_shift_used = true end
     if env.right_shift_down then env.right_shift_used = true end
-    if key:release() then return K_NOOP end
 
     -- 候选菜单中的普通方向键不再移动高亮；带修饰键的方向键仍按原功能处理。
     local is_arrow = repr == "Left" or repr == "Right" or repr == "Up" or repr == "Down"
